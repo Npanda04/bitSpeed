@@ -43,6 +43,27 @@ app.post('/identify', async (req: Request, res: Response) => {
     });
   }
 
+  // Determine the primary contact
+  let primaryContact = contacts.find(contact => contact.linkPrecedence === 'primary') || contacts[0];
+  let secondaryContacts = contacts.filter(contact => contact.id !== primaryContact.id);
+
+  // If the incoming request contains new information, create a new secondary contact
+  const existingEmail = contacts.some(contact => contact.email === email);
+  const existingPhoneNumber = contacts.some(contact => contact.phoneNumber === phoneNumber);
+
+  if ((email && !existingEmail) || (phoneNumber && !existingPhoneNumber)) {
+    const newSecondaryContact = await prisma.contact.create({
+      data: {
+        email,
+        phoneNumber,
+        linkedId: primaryContact.id,
+        linkPrecedence: 'secondary',
+      },
+    });
+
+    secondaryContacts.push(newSecondaryContact);
+  }
+
 
 });
 
