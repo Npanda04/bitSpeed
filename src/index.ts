@@ -64,7 +64,35 @@ app.post('/identify', async (req: Request, res: Response) => {
     secondaryContacts.push(newSecondaryContact);
   }
 
+  // Fetch all related contacts using a join approach
+  const allRelatedContacts = await prisma.contact.findMany({
+    where: {
+      OR: [
+        { id: primaryContact.id },
+        { linkedId: primaryContact.id },
+        { linkedId: { in: secondaryContacts.map(sc => sc.id) } },
+      ],
+    },
+  });
 
+  // Collect all emails and phone numbers
+  const emails = Array.from(new Set(allRelatedContacts.map(contact => contact.email).filter(Boolean)));
+  const phoneNumbers = Array.from(new Set(allRelatedContacts.map(contact => contact.phoneNumber).filter(Boolean)));
+
+  // Collect secondary contact IDs
+  const secondaryContactIds = allRelatedContacts
+    .filter(contact => contact.linkPrecedence === 'secondary')
+    .map(contact => contact.id);
+
+  // Respond with the consolidated contact information
+  return res.json({
+    contact: {
+      primaryContactId: primaryContact.id,
+      emails,
+      phoneNumbers,
+      secondaryContactIds,
+    },
+  });
 });
 
 const PORT = process.env.PORT || 3000;
